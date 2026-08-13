@@ -56,12 +56,178 @@
           <i data-lucide="rotate-cw"></i>
         </button>
 
+        <button id="btn-toggle-translator" class="btn-icon btn-translator-trigger" title="English Voice Translator (T)">
+          <i data-lucide="languages"></i>
+        </button>
+
+        <button id="btn-toggle-debug" class="btn-icon btn-debug-trigger" title="System Diagnostics & Debug Console (D)">
+          <i data-lucide="bug"></i>
+        </button>
+
         <div class="status-pill" id="recording-status">
           <span class="status-dot"></span>
           <span id="status-text">Ready</span>
         </div>
       </div>
     </header>
+
+    <!-- Slide-over / Expandable Voice Translator Panel -->
+    <section id="translator-panel" class="translator-panel glass-panel hidden">
+      <div class="panel-header">
+        <div class="panel-title">
+          <i data-lucide="languages" class="panel-icon"></i>
+          <span>English Voice Translator</span>
+        </div>
+        <button id="btn-close-translator" class="btn-icon btn-close-panel" title="Close Translator">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+
+      <div class="translator-controls-row">
+        <div class="control-group">
+          <label for="translator-lang-select"><i data-lucide="globe"></i> Target:</label>
+          <div class="select-wrapper">
+            <select id="translator-lang-select" class="custom-select translator-select">
+              <!-- Dynamically populated -->
+            </select>
+            <i data-lucide="chevron-down" class="select-arrow"></i>
+          </div>
+        </div>
+
+        <div class="status-pill" id="translator-status">
+          <span class="status-dot"></span>
+          <span id="translator-status-text">Ready</span>
+        </div>
+      </div>
+
+      <!-- Live Audio Magnitude VU Meter for Translator Verification & Debugging -->
+      <div class="translator-vu-bar" title="Live Translator Microphone Audio Magnitude (dB)">
+        <div class="translator-vu-fill" id="translator-vu-fill"></div>
+        <span class="translator-vu-label" id="translator-vu-label">Magnitude: -inf dB</span>
+      </div>
+
+      <!-- Dual Text Display Boxes -->
+      <div class="translator-boxes">
+        <div class="transcript-box-wrapper">
+          <div class="box-label">
+            <span>[EN] Spoken English Voice</span>
+            <button id="btn-copy-transcript" class="btn-text-action" title="Copy English Text"><i data-lucide="copy"></i></button>
+          </div>
+          <div id="translator-transcript-box" class="transcript-display placeholder" contenteditable="true" spellcheck="false">Speak or type in English...</div>
+        </div>
+
+        <div class="transcript-box-wrapper">
+          <div class="box-label">
+            <span>[TARGET] Translated Text</span>
+            <div class="box-actions">
+              <button id="btn-speak-translation" class="btn-text-action" title="Read Aloud / Text-to-Speech"><i data-lucide="volume-2"></i></button>
+              <button id="btn-copy-translation" class="btn-text-action" title="Copy Translation"><i data-lucide="copy"></i></button>
+            </div>
+          </div>
+          <div id="translator-result-box" class="transcript-display placeholder">Translation result will appear here...</div>
+        </div>
+      </div>
+
+      <!-- Translator Action Console -->
+      <div class="translator-actions">
+        <button id="btn-start-translate-record" class="btn-secondary-action btn-listen">
+          <i data-lucide="mic"></i>
+          <span>Record Voice</span>
+        </button>
+        <button id="btn-stop-translate-record" class="btn-secondary-action btn-stop-record" disabled>
+          <i data-lucide="square"></i>
+          <span>Stop & Translate</span>
+        </button>
+        <button id="btn-clear-translator" class="btn-secondary-action btn-clear" title="Clear Transcript">
+          <i data-lucide="trash-2"></i>
+          <span>Clear</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- Slide-over / Expandable System Debugging & Diagnostics Panel -->
+    <section id="debug-panel" class="debug-panel glass-panel hidden">
+      <div class="panel-header">
+        <div class="panel-title">
+          <i data-lucide="bug" class="panel-icon"></i>
+          <span>System Diagnostics & Debug Console</span>
+        </div>
+        <button id="btn-close-debug" class="btn-icon btn-close-panel" title="Close Debug Console">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+
+      <div class="debug-actions-row">
+        <button id="btn-run-diagnostics" class="btn-secondary-action btn-run-test">
+          <i data-lucide="play-circle"></i>
+          <span>Run All Diagnostics</span>
+        </button>
+        <div class="status-pill" id="debug-overall-status">
+          <span class="status-dot"></span>
+          <span id="debug-overall-text">Idle</span>
+        </div>
+      </div>
+
+      <!-- Diagnostic Tests Cards Grid -->
+      <div id="debug-tests-grid" class="debug-tests-grid">
+        <div class="test-card" id="card-test-1">
+          <div class="test-card-header">
+            <span class="test-name">1. Microphone Stream Capture</span>
+            <span class="badge-status gray">N/A</span>
+          </div>
+          <p class="test-details">Click 'Run All Diagnostics' to test getUserMedia audio track</p>
+        </div>
+
+        <div class="test-card" id="card-test-2">
+          <div class="test-card-header">
+            <span class="test-name">2. 16kHz PCM Resampler</span>
+            <span class="badge-status gray">N/A</span>
+          </div>
+          <p class="test-details">Tests OfflineAudioContext 16,000Hz PCM extraction</p>
+        </div>
+
+        <div class="test-card" id="card-test-3">
+          <div class="test-card-header">
+            <span class="test-name">3. Local Whisper WASM Model</span>
+            <span class="badge-status gray">N/A</span>
+          </div>
+          <p class="test-details">Tests @xenova/transformers ONNX WASM pipeline</p>
+        </div>
+
+        <div class="test-card" id="card-test-4">
+          <div class="test-card-header">
+            <span class="test-name">4. Web Speech API Availability</span>
+            <span class="badge-status gray">N/A</span>
+          </div>
+          <p class="test-details">Tests browser SpeechRecognition vs Electron fallback</p>
+        </div>
+
+        <div class="test-card" id="card-test-5">
+          <div class="test-card-header">
+            <span class="test-name">5. Translation API & Latency</span>
+            <span class="badge-status gray">N/A</span>
+          </div>
+          <p class="test-details">Measures translation endpoint ping & HTTP latency</p>
+        </div>
+
+        <div class="test-card" id="card-test-6">
+          <div class="test-card-header">
+            <span class="test-name">6. Electron IPC Bridge</span>
+            <span class="badge-status gray">N/A</span>
+          </div>
+          <p class="test-details">Tests window.electronAPI.transcribeAudio IPC channel</p>
+        </div>
+      </div>
+
+      <!-- Live Terminal Output Console Log -->
+      <div class="debug-console-wrapper">
+        <div class="console-label">
+          <span><i data-lucide="terminal"></i> Diagnostic Output Log</span>
+          <button id="btn-clear-debug-log" class="btn-text-action" title="Clear Console Log"><i data-lucide="trash-2"></i></button>
+        </div>
+        <div id="debug-log-box" class="debug-log-box">Ready. Click 'Run All Diagnostics' to execute test suite...</div>
+      </div>
+    </section>
 
     <!-- Main Workspace -->
     <main class="workspace-layout">

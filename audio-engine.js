@@ -346,6 +346,33 @@ export class AudioEngine {
     }
   }
 
+  /** Convert any audio blob (webm/ogg) to standardized 16kHz 16-bit Mono WAV Blob */
+  async blobTo16kWav(blob) {
+    try {
+      await this.initContext();
+      const audioBuffer = await this.blobToAudioBuffer(blob);
+      if (!audioBuffer) return blob;
+
+      const OfflineCtxClass = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+      const offlineCtx = new OfflineCtxClass(
+        1,
+        Math.ceil(audioBuffer.duration * 16000),
+        16000
+      );
+
+      const source = offlineCtx.createBufferSource();
+      source.buffer = audioBuffer;
+      source.connect(offlineCtx.destination);
+      source.start(0);
+
+      const renderedBuffer = await offlineCtx.startRendering();
+      return this.audioBufferToWav(renderedBuffer);
+    } catch (err) {
+      console.warn('WAV resampling warning:', err);
+      return blob;
+    }
+  }
+
   /** Convert AudioBuffer to WAV Blob */
   audioBufferToWav(audioBuffer) {
     const numOfChan = audioBuffer.numberOfChannels;

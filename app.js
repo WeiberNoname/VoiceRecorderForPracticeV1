@@ -4,6 +4,8 @@
  */
 import { AudioEngine } from './audio-engine.js';
 import { Visualizer } from './visualizer.js';
+import { TranslatorEngine, SUPPORTED_LANGUAGES } from './translator-engine.js';
+import { DebugEngine } from './debug-engine.js';
 
 /** Loop Phase Constants */
 export const LOOP_PHASE = Object.freeze({
@@ -51,7 +53,35 @@ class UIView {
       presetChips: document.querySelectorAll('.preset-chip'),
       btnToggleLoop: document.getElementById('btn-toggle-loop'),
       loopBtnText: document.getElementById('loop-btn-text'),
-      loopBtnIcon: document.getElementById('loop-btn-icon')
+      loopBtnIcon: document.getElementById('loop-btn-icon'),
+
+      // Translator Elements
+      btnToggleTranslator: document.getElementById('btn-toggle-translator'),
+      translatorPanel: document.getElementById('translator-panel'),
+      btnCloseTranslator: document.getElementById('btn-close-translator'),
+      translatorLangSelect: document.getElementById('translator-lang-select'),
+      translatorStatus: document.getElementById('translator-status'),
+      translatorStatusText: document.getElementById('translator-status-text'),
+      translatorVuFill: document.getElementById('translator-vu-fill'),
+      translatorVuLabel: document.getElementById('translator-vu-label'),
+      translatorTranscriptBox: document.getElementById('translator-transcript-box'),
+      translatorResultBox: document.getElementById('translator-result-box'),
+      btnCopyTranscript: document.getElementById('btn-copy-transcript'),
+      btnCopyTranslation: document.getElementById('btn-copy-translation'),
+      btnSpeakTranslation: document.getElementById('btn-speak-translation'),
+      btnStartTranslateRecord: document.getElementById('btn-start-translate-record'),
+      btnStopTranslateRecord: document.getElementById('btn-stop-translate-record'),
+      btnClearTranslator: document.getElementById('btn-clear-translator'),
+
+      // Debugging Panel Elements
+      btnToggleDebug: document.getElementById('btn-toggle-debug'),
+      debugPanel: document.getElementById('debug-panel'),
+      btnCloseDebug: document.getElementById('btn-close-debug'),
+      btnRunDiagnostics: document.getElementById('btn-run-diagnostics'),
+      debugOverallStatus: document.getElementById('debug-overall-status'),
+      debugOverallText: document.getElementById('debug-overall-text'),
+      debugLogBox: document.getElementById('debug-log-box'),
+      btnClearDebugLog: document.getElementById('btn-clear-debug-log')
     };
   }
 
@@ -77,12 +107,12 @@ class UIView {
     if (this.elements.timerMillis) this.elements.timerMillis.textContent = String(millis).padStart(2, '0');
   }
 
-  /** Reset Timer to 00:00:00.00 */
-  resetTimerDisplay() {
-    this.setTimerDisplay(0);
+  /** Reset Timer to Selected Loop Duration */
+  resetTimerDisplay(durationMs = CONFIG.DEFAULT_DURATION_MS) {
+    this.setTimerDisplay(durationMs);
   }
 
-  /** GPU-Accelerated VU Level Meter Update */
+  /** GPU-Accelerated Main Visualizer VU Level Meter Update */
   setVUMeter(db) {
     if (!this.elements.vuFill || !this.elements.vuLabel) return;
     const minDb = -60;
@@ -93,6 +123,19 @@ class UIView {
 
     this.elements.vuFill.style.transform = `scaleX(${scale})`;
     this.elements.vuLabel.textContent = db <= minDb ? '-inf dB' : `${Math.round(db)} dB`;
+  }
+
+  /** GPU-Accelerated Translator Panel Magnitude Meter Update */
+  setTranslatorVUMeter(db) {
+    if (!this.elements.translatorVuFill || !this.elements.translatorVuLabel) return;
+    const minDb = -60;
+    const maxDb = 0;
+    const clampedDb = Math.max(minDb, Math.min(maxDb, db));
+    const percent = Math.max(0, ((clampedDb - minDb) / (maxDb - minDb)) * 100);
+    const scale = percent / 100;
+
+    this.elements.translatorVuFill.style.transform = `scaleX(${scale})`;
+    this.elements.translatorVuLabel.textContent = db <= minDb ? 'Magnitude: -inf dB' : `Magnitude: ${Math.round(db)} dB`;
   }
 
   /** Toggle Hero Control Button Active State */
@@ -129,6 +172,73 @@ class UIView {
       this.elements.loopSecondsInput.disabled = disabled;
     }
   }
+
+  /** Update Translator Status & Control Buttons */
+  setTranslatorStatus(state, text) {
+    const statusPill = this.elements.translatorStatus;
+    const statusText = this.elements.translatorStatusText;
+    const btnStart = this.elements.btnStartTranslateRecord;
+    const btnStop = this.elements.btnStopTranslateRecord;
+
+    if (statusText) statusText.textContent = text;
+
+    if (statusPill) {
+      statusPill.className = `status-pill ${state === 'listening' || state === 'error' ? 'recording' : state === 'translating' ? 'paused' : ''}`;
+    }
+
+    if (btnStart && btnStop) {
+      if (state === 'listening') {
+        btnStart.disabled = true;
+        btnStart.classList.add('listening-active');
+        btnStop.disabled = false;
+      } else {
+        btnStart.disabled = false;
+        btnStart.classList.remove('listening-active');
+        btnStop.disabled = true;
+      }
+    }
+  }
+
+  /** Update Debugging Test Card UI */
+  updateTestCardUI(result) {
+    const card = document.getElementById(`card-${result.id}`);
+    if (!card) return;
+
+    const badge = card.querySelector('.badge-status');
+    const details = card.querySelector('.test-details');
+
+    if (badge) {
+      badge.textContent = result.state;
+      badge.className = `badge-status ${result.state.toLowerCase()}`;
+    }
+
+    if (details) {
+      details.textContent = `${result.details} ${result.elapsedMs ? `(${result.elapsedMs}ms)` : ''}`;
+    }
+  }
+
+  /** Append Log line to Debug Console Output Box */
+  appendDebugLog(msg) {
+    const logBox = this.elements.debugLogBox;
+    if (!logBox) return;
+    if (logBox.textContent.startsWith('Ready.')) logBox.textContent = '';
+    logBox.textContent += msg + '\n';
+    logBox.scrollTop = logBox.scrollHeight;
+  }
+
+  /** Populate Language Select Dropdown */
+  populateLanguages() {
+    const select = this.elements.translatorLangSelect;
+    if (!select) return;
+
+    select.innerHTML = '';
+    SUPPORTED_LANGUAGES.forEach(lang => {
+      const opt = document.createElement('option');
+      opt.value = lang.code;
+      opt.textContent = lang.name;
+      select.appendChild(opt);
+    });
+  }
 }
 
 /**
@@ -139,14 +249,18 @@ class LoopApp {
     this.engine = new AudioEngine();
     this.visualizer = null;
     this.ui = new UIView();
+    this.translator = new TranslatorEngine();
+    this.debugger = new DebugEngine();
 
     // Loop Application State
     this.phase = LOOP_PHASE.IDLE;
+    this.isLoopRunning = false;
     this.loopDurationMs = CONFIG.DEFAULT_DURATION_MS;
 
     // Handles & Resources
     this.phaseTimeout = null;
     this.countdownInterval = null;
+    this.activeSourceNode = null;
     this.activeAudioElement = null;
     this.activeAudioUrl = null;
 
@@ -156,8 +270,11 @@ class LoopApp {
   async init() {
     this.setupElectronTitlebar();
     this.setupVisualizer();
+    this.setupTranslator();
+    this.setupDebug();
     this.bindEvents();
     await this.loadAudioDevices();
+    this.ui.resetTimerDisplay(this.loopDurationMs);
 
     if (window.lucide) window.lucide.createIcons();
   }
@@ -183,6 +300,58 @@ class LoopApp {
     }
   }
 
+  /** Translator Setup */
+  setupTranslator() {
+    this.ui.populateLanguages();
+
+    this.translator.onTranscriptUpdate = (text) => {
+      const box = this.ui.elements.translatorTranscriptBox;
+      if (!box) return;
+      if (text && text.trim()) {
+        box.innerText = text;
+        box.classList.remove('placeholder');
+      } else {
+        box.innerText = 'Speak or type in English...';
+        box.classList.add('placeholder');
+      }
+    };
+
+    this.translator.onTranslationUpdate = (text) => {
+      const box = this.ui.elements.translatorResultBox;
+      if (!box) return;
+      if (text) {
+        box.textContent = text;
+        box.classList.remove('placeholder');
+      } else {
+        box.textContent = 'Translation result will appear here...';
+        box.classList.add('placeholder');
+      }
+    };
+
+    this.translator.onAudioMagnitudeUpdate = (db, rms) => {
+      this.ui.setTranslatorVUMeter(db);
+    };
+
+    this.translator.onStatusChange = (state, text) => {
+      this.ui.setTranslatorStatus(state, text);
+    };
+
+    this.translator.onError = (errText) => {
+      this.ui.setTranslatorStatus('error', `⚠️ ${errText}`);
+    };
+  }
+
+  /** Debugging Engine & UI Setup */
+  setupDebug() {
+    this.debugger.onTestUpdate = (result) => {
+      this.ui.updateTestCardUI(result);
+    };
+
+    this.debugger.onLogMessage = (msg) => {
+      this.ui.appendDebugLog(msg);
+    };
+  }
+
   /** Audio Devices Enumeration */
   async loadAudioDevices() {
     const select = this.ui.elements.micSelect;
@@ -195,12 +364,12 @@ class LoopApp {
 
     const sysOpt = document.createElement('option');
     sysOpt.value = 'system_audio';
-    sysOpt.textContent = '💻 Computer System Audio (PC Sound / YouTube)';
+    sysOpt.textContent = '💻 Computer System Audio';
     select.appendChild(sysOpt);
 
     const defaultOpt = document.createElement('option');
     defaultOpt.value = 'default_mic';
-    defaultOpt.textContent = '🎙️ Default Microphone (Your Voice)';
+    defaultOpt.textContent = '🎙️ Default Microphone';
     select.appendChild(defaultOpt);
 
     devices.forEach((d, idx) => {
@@ -248,18 +417,144 @@ class LoopApp {
       });
     });
 
+    // Translator Panel Toggle
+    const toggleTranslatorPanel = () => {
+      const panel = this.ui.elements.translatorPanel;
+      if (panel) {
+        panel.classList.toggle('hidden');
+        this.ui.elements.btnToggleTranslator?.classList.toggle('active', !panel.classList.contains('hidden'));
+      }
+    };
+
+    // Debugging Panel Toggle
+    const toggleDebugPanel = () => {
+      const panel = this.ui.elements.debugPanel;
+      if (panel) {
+        panel.classList.toggle('hidden');
+        this.ui.elements.btnToggleDebug?.classList.toggle('active', !panel.classList.contains('hidden'));
+      }
+    };
+
+    this.ui.elements.btnToggleTranslator?.addEventListener('click', toggleTranslatorPanel);
+    this.ui.elements.btnCloseTranslator?.addEventListener('click', toggleTranslatorPanel);
+
+    this.ui.elements.btnToggleDebug?.addEventListener('click', toggleDebugPanel);
+    this.ui.elements.btnCloseDebug?.addEventListener('click', toggleDebugPanel);
+
+    this.ui.elements.btnRunDiagnostics?.addEventListener('click', async () => {
+      const overallText = this.ui.elements.debugOverallText;
+      const overallStatus = this.ui.elements.debugOverallStatus;
+
+      if (overallText) overallText.textContent = 'Running...';
+      if (overallStatus) overallStatus.className = 'status-pill paused';
+
+      await this.debugger.runAllDiagnostics();
+
+      if (overallText) overallText.textContent = 'Finished';
+      if (overallStatus) overallStatus.className = 'status-pill recording';
+    });
+
+    this.ui.elements.btnClearDebugLog?.addEventListener('click', () => {
+      const logBox = this.ui.elements.debugLogBox;
+      if (logBox) logBox.textContent = 'Log cleared.\n';
+    });
+
+    this.ui.elements.translatorLangSelect?.addEventListener('change', (e) => {
+      this.translator.setTargetLanguage(e.target.value);
+    });
+
+    this.ui.elements.btnStartTranslateRecord?.addEventListener('click', () => {
+      this.translator.startSingleRecording();
+    });
+
+    this.ui.elements.btnStopTranslateRecord?.addEventListener('click', () => {
+      this.translator.stopSingleRecording();
+    });
+
+    this.ui.elements.btnClearTranslator?.addEventListener('click', () => {
+      this.translator.clear();
+      const box = this.ui.elements.translatorTranscriptBox;
+      if (box) {
+        box.innerText = 'Speak or type in English...';
+        box.classList.add('placeholder');
+      }
+    });
+
+    // Manual typing in English transcript box fallback
+    const transcriptBox = this.ui.elements.translatorTranscriptBox;
+    if (transcriptBox) {
+      transcriptBox.addEventListener('focus', () => {
+        if (transcriptBox.innerText === 'Speak or type in English...') {
+          transcriptBox.innerText = '';
+          transcriptBox.classList.remove('placeholder');
+        }
+      });
+
+      transcriptBox.addEventListener('blur', () => {
+        if (!transcriptBox.innerText.trim()) {
+          transcriptBox.innerText = 'Speak or type in English...';
+          transcriptBox.classList.add('placeholder');
+        }
+      });
+
+      let typingTimer = null;
+      transcriptBox.addEventListener('input', () => {
+        const text = transcriptBox.innerText.trim();
+        if (text && text !== 'Speak or type in English...') {
+          transcriptBox.classList.remove('placeholder');
+          this.translator.transcript = text;
+          clearTimeout(typingTimer);
+          typingTimer = setTimeout(() => {
+            this.translator.translateCurrentText(text);
+          }, 350);
+        } else {
+          transcriptBox.classList.add('placeholder');
+          this.translator.clear();
+        }
+      });
+    }
+
+    this.ui.elements.btnCopyTranscript?.addEventListener('click', () => {
+      const text = this.translator.transcript || transcriptBox?.innerText.replace('Speak or type in English...', '').trim();
+      if (text) {
+        navigator.clipboard.writeText(text);
+      }
+    });
+
+    this.ui.elements.btnCopyTranslation?.addEventListener('click', () => {
+      if (this.translator.translation) {
+        navigator.clipboard.writeText(this.translator.translation);
+      }
+    });
+
+    this.ui.elements.btnSpeakTranslation?.addEventListener('click', () => {
+      this.translator.speakTranslation();
+    });
+
     // Keyboard Shortcuts
     document.addEventListener('keydown', (e) => {
-      if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) return;
+      if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName) || e.target.isContentEditable) return;
 
       if (e.code === 'Space') {
         e.preventDefault();
         this.toggleLoop();
       } else if (e.code === 'Escape') {
-        if (this.phase !== LOOP_PHASE.IDLE) {
+        if (this.isLoopRunning) {
           e.preventDefault();
           this.stopLoop();
+        } else if (this.ui.elements.translatorPanel && !this.ui.elements.translatorPanel.classList.contains('hidden')) {
+          e.preventDefault();
+          toggleTranslatorPanel();
+        } else if (this.ui.elements.debugPanel && !this.ui.elements.debugPanel.classList.contains('hidden')) {
+          e.preventDefault();
+          toggleDebugPanel();
         }
+      } else if (e.key === 't' || e.key === 'T') {
+        e.preventDefault();
+        toggleTranslatorPanel();
+      } else if (e.key === 'd' || e.key === 'D') {
+        e.preventDefault();
+        toggleDebugPanel();
       }
     });
   }
@@ -272,11 +567,15 @@ class LoopApp {
 
     this.loopDurationMs = sec * 1000;
     this.ui.setPresetActive(sec);
+
+    if (!this.isLoopRunning) {
+      this.ui.resetTimerDisplay(this.loopDurationMs);
+    }
   }
 
   /** Main Toggle Controller */
   async toggleLoop() {
-    if (this.phase === LOOP_PHASE.IDLE) {
+    if (!this.isLoopRunning) {
       await this.startLoop();
     } else {
       await this.stopLoop();
@@ -285,6 +584,7 @@ class LoopApp {
 
   /** Start Ping-Pong Loop */
   async startLoop() {
+    this.isLoopRunning = true;
     this.ui.setControlsDisabled(true);
     this.ui.setLoopButtonState(true);
     await this.enterRecordPhase();
@@ -292,9 +592,7 @@ class LoopApp {
 
   /** Step 1: Record Phase Execution */
   async enterRecordPhase() {
-    if (this.phase === LOOP_PHASE.IDLE && this.ui.elements.btnToggleLoop.getAttribute('data-active') === 'false') {
-      return;
-    }
+    if (!this.isLoopRunning) return;
 
     this.phase = LOOP_PHASE.RECORDING;
     const durationSec = Math.round(this.loopDurationMs / 1000);
@@ -314,30 +612,35 @@ class LoopApp {
       this.startCountdown(this.loopDurationMs, `🔴 Record ${durationSec}s`);
 
       this.phaseTimeout = setTimeout(async () => {
-        if (this.phase !== LOOP_PHASE.RECORDING) return;
+        if (!this.isLoopRunning || this.phase !== LOOP_PHASE.RECORDING) return;
 
         this.stopVisualizer();
         this.stopCountdown();
 
         const result = await this.engine.stopRecording(false);
 
-        if (result && result.blob && this.phase === LOOP_PHASE.RECORDING) {
+        if (result && result.blob && this.isLoopRunning) {
+          // Automatically transcribe recorded loop voice clip when Translator panel is open
+          const panel = this.ui.elements.translatorPanel;
+          if (panel && !panel.classList.contains('hidden')) {
+            this.translator.transcribeAudioBlob(result.blob);
+          }
           await this.enterPlayPhase(result.blob);
-        } else if (this.phase === LOOP_PHASE.RECORDING) {
+        } else if (this.isLoopRunning) {
           await this.enterRecordPhase();
         }
       }, this.loopDurationMs);
 
     } catch (err) {
       console.error('Ping-Pong loop recording failed:', err);
-      alert('Could not start loop recording. Please check microphone and sound permissions.');
+      alert('Could not start loop recording. Please check microphone or system audio permissions.');
       await this.stopLoop();
     }
   }
 
   /** Step 2: Play Phase Execution */
   async enterPlayPhase(blob) {
-    if (this.phase === LOOP_PHASE.IDLE || !blob) return;
+    if (!this.isLoopRunning || !blob) return;
 
     this.phase = LOOP_PHASE.PLAYING;
     const durationSec = Math.round(this.loopDurationMs / 1000);
@@ -346,18 +649,23 @@ class LoopApp {
 
     this.cleanupAudioResources();
 
+    // Mute mic gain node during playback so microphone noise doesn't interfere with visualizer
+    if (this.engine.gainNode) {
+      this.engine.gainNode.gain.value = 0;
+    }
+
     try {
-      // Decode blob to AudioBuffer and play via Web Audio so AnalyserNode receives live magnitude
+      await this.engine.initContext();
       const audioBuffer = await this.engine.blobToAudioBuffer(blob);
-      if (this.phase !== LOOP_PHASE.PLAYING) return;
+      if (!this.isLoopRunning) return;
 
       const sourceNode = this.engine.audioCtx.createBufferSource();
       sourceNode.buffer = audioBuffer;
 
-      // Connect playing source to speaker destination AND to analyserNode for live visualizer waveform
+      // Connect source to speakers AND analyserNode for real-time waveform visualizer
       sourceNode.connect(this.engine.audioCtx.destination);
       if (this.engine.analyserNode) {
-        try { sourceNode.connect(this.engine.analyserNode); } catch (e) {}
+        try { sourceNode.connect(this.engine.analyserNode); } catch (e) { }
       }
 
       this.activeSourceNode = sourceNode;
@@ -369,11 +677,11 @@ class LoopApp {
       this.activeAudioElement = new Audio(this.activeAudioUrl);
       try {
         await this.activeAudioElement.play();
-      } catch (e) {}
+      } catch (e) { }
     }
 
     this.phaseTimeout = setTimeout(async () => {
-      if (this.phase !== LOOP_PHASE.PLAYING) return;
+      if (!this.isLoopRunning || this.phase !== LOOP_PHASE.PLAYING) return;
 
       this.stopVisualizer();
       this.stopCountdown();
@@ -410,6 +718,7 @@ class LoopApp {
 
   /** Stop Loop & Clean Up All Resources */
   async stopLoop() {
+    this.isLoopRunning = false;
     this.phase = LOOP_PHASE.IDLE;
 
     if (this.phaseTimeout) {
@@ -427,21 +736,21 @@ class LoopApp {
     }
 
     this.stopVisualizer();
-    this.ui.resetTimerDisplay();
+    this.ui.resetTimerDisplay(this.loopDurationMs);
     this.ui.setStatus('Ready', 'ready');
     this.ui.setLoopButtonState(false);
     this.ui.setControlsDisabled(false);
   }
 
-  /** Clean Up Audio Playback Resources & Prevent URL/Node Leaks */
+  /** Clean Up Audio Playback Resources & Prevent Memory / URL Leaks */
   cleanupAudioResources() {
     if (this.activeSourceNode) {
-      try { this.activeSourceNode.stop(); } catch (e) {}
-      try { this.activeSourceNode.disconnect(); } catch (e) {}
+      try { this.activeSourceNode.stop(); } catch (e) { }
+      try { this.activeSourceNode.disconnect(); } catch (e) { }
       this.activeSourceNode = null;
     }
     if (this.activeAudioElement) {
-      try { this.activeAudioElement.pause(); } catch (e) {}
+      try { this.activeAudioElement.pause(); } catch (e) { }
       this.activeAudioElement = null;
     }
     if (this.activeAudioUrl) {

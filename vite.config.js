@@ -5,6 +5,10 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     assetsDir: 'assets',
-    emptyOutDir: true
+    emptyOutDir: true,
+    target: 'esnext'
+  },
+  optimizeDeps: {
+    exclude: ['@xenova/transformers']
   }
 });

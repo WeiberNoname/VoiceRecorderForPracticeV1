@@ -1,4 +1,4 @@
-<img width="523" height="531" alt="Screenshot 2026-08-13 202253" src="https://github.com/user-attachments/assets/cbe7157c-b192-4871-8977-a3fa3541d747" />
+<img width="507" height="1077" alt="image" src="https://github.com/user-attachments/assets/6b040ae3-9a6e-4ef4-8631-4506584a972b" />
 
 
 # Ping-Pong Loop Studio 🔁

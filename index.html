@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Voice Recorder - Ping-Pong Loop Studio</title>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="app-container">
+    <!-- Native Windows Titlebar -->
+    <div class="window-titlebar hidden" id="window-titlebar">
+      <div class="titlebar-drag-region">
+        <i data-lucide="repeat" class="titlebar-icon"></i>
+        <span>Ping-Pong Loop Studio</span>
+      </div>
+      <div class="titlebar-controls">
+        <button id="btn-win-minimize" class="titlebar-btn" title="Minimize"><i data-lucide="minus"></i></button>
+        <button id="btn-win-maximize" class="titlebar-btn" title="Maximize"><i data-lucide="square"></i></button>
+        <button id="btn-win-close" class="titlebar-btn btn-win-close" title="Close"><i data-lucide="x"></i></button>
+      </div>
+    </div>
+
+    <!-- Top Navigation Header -->
+    <header class="app-header">
+      <div class="brand-section">
+        <div class="logo-icon">
+          <i data-lucide="repeat"></i>
+          <span class="pulse-ring"></span>
+        </div>
+        <div class="brand-text">
+          <h1>Ping-Pong Loop Studio</h1>
+          <p>Continuous Audio Loop Engine</p>
+        </div>
+      </div>
+
+      <!-- Audio Input Selector & Status -->
+      <div class="input-controls">
+        <div class="control-group">
+          <label for="mic-select"><i data-lucide="volume-2"></i> Source:</label>
+          <div class="select-wrapper">
+            <select id="mic-select" class="custom-select">
+              <option value="system_audio" selected>💻 Computer System Audio (PC Sound)</option>
+            </select>
+            <i data-lucide="chevron-down" class="select-arrow"></i>
+          </div>
+        </div>
+
+        <button id="btn-refresh-devices" class="btn-icon" title="Refresh Input Devices">
+          <i data-lucide="rotate-cw"></i>
+        </button>
+
+        <div class="status-pill" id="recording-status">
+          <span class="status-dot"></span>
+          <span id="status-text">Ready</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Workspace -->
+    <main class="workspace-layout">
+      <!-- Main Loop Console Card -->
+      <section class="visualizer-card glass-panel">
+        <!-- Hero Timer Display -->
+        <div class="visualizer-header">
+          <div class="timer-display">
+            <span id="timer-hours">00</span>:<span id="timer-minutes">00</span>:<span id="timer-seconds">00</span><span class="timer-ms">.<span id="timer-millis">00</span></span>
+          </div>
+        </div>
+
+        <!-- Waveform Visualizer Canvas -->
+        <div class="canvas-wrapper" id="canvas-wrapper">
+          <canvas id="visualizer-canvas"></canvas>
+
+          <!-- VU Decibel Level Meter Bar -->
+          <div class="vu-meter-bar">
+            <div class="vu-fill" id="vu-fill"></div>
+            <span class="vu-label" id="vu-label">-inf dB</span>
+          </div>
+        </div>
+
+        <!-- Loop Time Preset Bar -->
+        <div class="loop-config-bar">
+          <div class="loop-config-row">
+            <label for="loop-seconds-input"><i data-lucide="clock"></i> Duration:</label>
+            <div class="preset-chips">
+              <button class="preset-chip" data-sec="2">2s</button>
+              <button class="preset-chip active" data-sec="5">5s</button>
+              <button class="preset-chip" data-sec="10">10s</button>
+              <button class="preset-chip" data-sec="15">15s</button>
+              <button class="preset-chip" data-sec="30">30s</button>
+              <button class="preset-chip" data-sec="60">60s</button>
+            </div>
+            <div class="input-number-wrapper">
+              <input type="number" id="loop-seconds-input" min="1" max="120" value="5" step="1" title="Custom Loop Time (1-120s)" />
+              <span class="unit-label">sec</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Start / Stop Action Console -->
+        <div class="controls-console">
+          <button id="btn-toggle-loop" class="btn-primary-record btn-toggle-loop" title="Start / Stop Ping-Pong Loop (Spacebar)">
+            <div class="btn-inner">
+              <i data-lucide="play" class="mic-icon" id="loop-btn-icon"></i>
+              <span id="loop-btn-text">START PING-PONG LOOP</span>
+            </div>
+          </button>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script type="module" src="app.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      if (window.lucide) {
+        window.lucide.createIcons();
+      }
+    });
+  </script>
+</body>
+</html>

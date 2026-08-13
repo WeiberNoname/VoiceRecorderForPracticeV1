@@ -1,0 +1,25 @@
+{
+  "name": "soundpulse-studio",
+  "private": true,
+  "version": "1.0.0",
+  "author": "SoundPulse",
+  "description": "Next-Gen Native Voice Recorder Studio for Windows",
+  "main": "electron/main.cjs",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "electron:start": "electron .",
+    "electron:dev": "concurrently \"vite\" \"wait-on http://localhost:5173 && electron .\"",
+    "package:win": "vite build && electron-packager . SoundPulseStudio --platform=win32 --arch=x64 --out=dist-win --overwrite"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "electron": "^31.3.0",
+    "electron-builder": "^24.13.3",
+    "electron-packager": "^17.1.2",
+    "vite": "^5.4.0",
+    "wait-on": "^7.2.0"
+  }
+}

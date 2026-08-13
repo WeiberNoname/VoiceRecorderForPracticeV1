@@ -1,3 +1,6 @@
+<img width="523" height="531" alt="Screenshot 2026-08-13 202253" src="https://github.com/user-attachments/assets/cbe7157c-b192-4871-8977-a3fa3541d747" />
+
+
 # Ping-Pong Loop Studio 🔁
 > Dedicated Custom-Length Voice & Audio Loop Recorder for Desktop & Web
 
